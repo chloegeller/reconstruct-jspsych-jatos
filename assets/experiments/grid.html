@@ -1,0 +1,199 @@
+<div id="instructions" class="mb-4">
+    <p> Please use the grid below to place obstacles in the room. </p>
+    <p> The grid represents a bird's-eye-view of the room. </p>
+    <ul id="demo-banners" class="list-group text-start my-5">
+        <li class="list-group-item list-group-item-success">
+            <div class="ms-2 me-auto">
+                <div class="fw-bold">Adding Obstacles</div>
+                To add an obstacle, press the <button class="btn btn-outline-success">Draw</button> button below the grid, then <strong>click on the cells in the grid.</strong> To add <strong>multiple obstacles</strong>, click and drag over the cells in the grid.
+            </div>
+        </li>
+        <li class="list-group-item list-group-item-danger">
+            <div class="ms-2 me-auto">
+                <div class="fw-bold">Removing Obstacles</div>
+                To remove an obstacle, press the <button class="btn btn-outline-danger">Erase</button> button below the grid, then <strong>click on the cells in the grid.</strong> To remove <strong>multiple obstacles</strong>, click and drag over the cells in the grid.
+            </div>
+        </li>
+        <li id="grid-legend" class="list-group-item">
+            <div class="ms-2 me-auto">
+                <div class="fw-bold"> Grid Legend </div>
+                <div id="legend-items">
+                    <span id="grid-entrance"> Your location </span>
+                    <span id="grid-exit"> Exit </span>
+                    <span id="grid-wall"> Wall </span>
+                    <span id="grid-obstacle"> Obstacle </span>
+                    <span id="grid-correct"> Correct Obstacle </span>
+                    <span id="grid-missing"> Missing Obstacle </span>
+                    <span id="grid-incorrect"> Incorrect Obstacle </span>
+                    <span id="grid-outside-fov"> Outside of your field-of-view </span>
+                </div>
+            </div>
+        </li>
+    </ul>
+    <!-- <ul class="fs-5"> -->
+        <!-- <li>To <strong>add</strong> an obstacle, press the "<strong>Draw</strong>" button below the grid, then <strong>click on the cell</strong> in the grid.</li> -->
+        <!-- <li>To <strong>add</strong> multiple obstacles, <strong>click and drag over the cells</strong> in the grid.</li> -->
+        <!-- <li>To <strong>remove</strong> an obstacle, press the "<strong>Erase</strong>" button below the grid, then <strong>click on the cell</strong> in the grid.</li> -->
+        <!-- <li>To <strong>remove</strong> multiple obstacles, <strong>click and drag over the cells</strong> in the grid.</li> -->
+    <!-- </ul> -->
+</div>
+
+<!-- <div id="grid-legend">
+    <strong> Grid Legend </strong>
+    <div id="legend-items">
+        <span id="grid-entrance"> Your location </span>
+        <span id="grid-exit"> Exit </span>
+        <span id="grid-wall"> Wall </span>
+        <span id="grid-obstacle"> Obstacle </span>
+        <span id="grid-outside-fov"> Out of your field-of-view </span>
+    </div>
+</div> -->
+
+<div id="grid-overlay-container" class="container-fluid mb-3">
+    <div id="overlay-wrapper">
+        <div id="overlay-container">
+           <img id="base-img" class="img-overlay" />
+        </div>
+    </div>
+    <div id="grid-container">
+        <canvas id="grid-canvas"></canvas>
+        <div id="grid-controls">
+            <button id="draw" class="btn btn-outline-success"> Draw </button>
+            <button id="erase" class="btn btn-outline-danger"> Erase </button>
+        </div>
+    </div>
+</div>
+
+<!-- <div id="fabric-grid-container"> </div> -->
+
+<button id="next" class="jspsych-btn" disabled> Next </button>
+
+<!-- https://stackoverflow.com/a/16844668 -->
+<style type="text/css" scoped>
+    :root {
+        --grid-entrance-bg: #6f41cf;
+        --grid-exit-bg: #fdda0d;
+        --grid-wall-bg: #201b1b;
+        --grid-obstacle-bg: #0000ff;
+        --grid-missing-bg: #ff8c00;
+        --grid-incorrect-bg: #eb0000;
+        --grid-correct-bg: #029e19;
+        --grid-outside-fov-bg: #d3d3d3;
+        --grid-stroke-color: #1e1e1e;
+        --grid-stroke-width: 0.025px;
+        --n-cols: 32;
+        --n-rows: 32;
+        --cell-size: 2rem;
+        --scale-factor: 1;
+        --grid-bg: #f0f0f0;
+    }
+
+    #legend-items {
+        display: flex;
+        align-items: center;
+        /* justify-content: center; */
+        margin: 1rem auto;
+        column-gap: 3rem;
+    }
+
+    #legend-items span {
+        height: var(--cell-size);
+        display: flex;
+        position: relative;
+        line-height: var(--cell-size);
+        font-weight: bold;
+    }
+
+    #legend-items span::before {
+        height: var(--cell-size);
+        width: var(--cell-size);
+        content: "";
+        border: calc(var(--grid-stroke-width) * var(--cell-size)) solid var(--grid-stroke-color);
+        margin-right: 0.5rem;
+    }
+
+    #grid-entrance::before { background-color: var(--grid-entrance-bg); }
+    #grid-exit::before { background-color: var(--grid-exit-bg); }
+    #grid-wall::before { background-color: var(--grid-wall-bg); }
+    #grid-obstacle::before { background-color: var(--grid-obstacle-bg); }
+    #grid-correct::before { background-color: var(--grid-correct-bg); }
+    #grid-missing::before { background-color: var(--grid-missing-bg); }
+    #grid-incorrect::before { background-color: var(--grid-incorrect-bg); }
+    #grid-outside-fov::before { background-color: var(--grid-outside-fov-bg); }
+
+    #grid-overlay-container {
+        display: flex;
+        flex-direction: row;
+    }
+
+    #overlay-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-bottom: 4rem;
+        margin-inline-end: 1rem;
+        flex-grow: 2;
+    }
+
+    #overlay-container {
+        position: relative;
+        height: 480px;
+        width: 720px;
+        margin-inline-start: auto;
+    }
+
+    #overlay-container div {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        height: 100%;
+        width: 100%;
+    }
+
+    #overlay-container .img-overlay {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        height: 100%;
+        width: 100%;
+    }
+
+    #base-img.img-overlay {
+        z-index: -9999;
+    }
+
+    #grid span.entrance { background-color: var(--grid-entrance-bg);}
+    #grid span.exit { background-color: var(--grid-exit-bg);}
+    #grid span.wall { background-color: var(--grid-wall-bg);}
+    #grid span.obstacle { background-color: var(--grid-obstacle-bg);}
+    #grid span.correct { background-color: var(--grid-correct-bg);}
+    #grid span.missing { background-color: var(--grid-missing-bg);}
+    #grid span.incorrect { background-color: var(--grid-incorrect-bg);}
+    #grid span.outside-fov { background-color: var(--grid-outside-fov-bg);}
+
+    #grid-container {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    #grid-canvas {
+        border: var(--grid-stroke-width) solid var(--grid-stroke-color);
+    }
+
+    #grid-controls {
+        max-width: calc(var(--cell-size) * var(--n-cols) * var(--scale-factor));
+        margin-inline-end: auto;
+        height: 3rem;
+        margin-inline: 0;
+        margin-top: 1rem;
+        display: flex;
+        align-items: center;
+    }
+
+    .btn {
+        margin-inline: 0.5rem;
+    }
+</style>
