@@ -14,14 +14,28 @@
     "@jspsych/plugin-instructions": "^1.1.2",
     "@jspsych/plugin-preload": "^1.1.2",
     "@jspsych/plugin-resize": "^1.0.2",
-    "@jspsych/plugin-sketchpad": "^1.0.3",
     "@jspsych/plugin-survey-multi-choice": "^1.1.2",
     "@jspsych/plugin-survey-text": "^1.1.2",
+    "@popperjs/core": "^2.11.8",
+    "bootstrap": "^5.3.0",
     "fabric": "^5.3.0",
-    "jspsych": "^7.3.1"
+    "jspsych": "^7.3.1",
+    "lodash-es": "^4.17.21"
   },
   "devDependencies": {
-    "jspsych-builder": "^4.3.3"
+    "@types/fabric": "^5.3.3",
+    "@types/lodash-es": "^4.17.7",
+    "autoprefixer": "^10.4.14",
+    "css-loader": "^6.8.1",
+    "html-webpack-plugin": "^5.5.3",
+    "jspsych-builder": "^4.3.3",
+    "postcss-loader": "^7.3.3",
+    "sass": "^1.63.6",
+    "sass-loader": "^13.3.2",
+    "style-loader": "^3.3.3",
+    "webpack": "^5.88.1",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1"
   },
   "browserslist": ">0.25%, not dead"
 }
