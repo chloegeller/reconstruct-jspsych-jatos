@@ -9,7 +9,7 @@
 // You can import stylesheets (.scss or .css).
 import "../styles/main.scss";
 
-import FullscreenPlugin from "@jspsych/plugin-fullscreen";
+import jsPsychFullscreen from "@jspsych/plugin-fullscreen";
 import HtmlKeyboardResponsePlugin from "@jspsych/plugin-html-keyboard-response";
 import jsPsychSurveyMultiChoice from '@jspsych/plugin-survey-multi-choice';
 import jsPsychImageKeyboardResponse from '@jspsych/plugin-image-keyboard-response';
@@ -18,12 +18,18 @@ import jsPsychSurveyText from '@jspsych/plugin-survey-text';
 import PreloadPlugin from "@jspsych/plugin-preload";
 import jsPsychResize from "@jspsych/plugin-resize";
 import jsPsychHtmlButtonResponse from "@jspsych/plugin-html-button-response";
-import jsPsychVslGridAlt from "./plugins/jspsych-vsl-grid-scene"
+import jsPsychVslGrid from "./plugins/jspsych-vsl-grid-scene.ts"
+import _ from "lodash-es";
+
+// Import all of Bootstrap's JS
+import "bootstrap";
+
+
 import {
   initJsPsych
 } from "jspsych";
 
-import { doorCondition } from "./condlist.json";
+import condition_list from "./condlist.json";
 /**
  * This function will be executed by jsPsych Builder and is expected to run the jsPsych experiment
  *
@@ -61,6 +67,28 @@ bbbbbbbBbbbbbbbb
 // //! Ensuring that these locations are marked as entrance/exit
 baseRoom[baseRoom.length - 1][7] = "e"
 
+const exampleBaseRoom = `
+wwwwwwwwwwwwwwww
+w       ooo oo w
+w     oo     o w
+w      o ooo   w
+w       oo     w
+w      o       w
+w     oo       w
+w   o   o      w
+w     o        w
+w              w
+w              w
+wb            bw
+wbb          bbw
+wbbb        bbbw
+bbbbb      bbbbb
+bbbbbbbBbbbbbbbb
+`.toLowerCase().replace(/ /g, "0").split("\n").filter(e => e).map(row => Array.from(row))
+
+// //! Ensuring that these locations are marked as entrance/exit
+exampleBaseRoom[exampleBaseRoom.length - 1][7] = "e"
+
 const IMAGE_PATH = `/assets/images`;
 const STIM_IMAGES = `${IMAGE_PATH}/stims`;
 const OBSTACLE_IMAGES = `${IMAGE_PATH}/obstacles`
@@ -96,6 +124,7 @@ const makeImageGridPair = (jsPsych, gridHTML, {
   stimImage,
   condition,
   isExample = false,
+  gtRoom = [],
 }) => {
   const {
     exits,
@@ -139,10 +168,12 @@ const makeImageGridPair = (jsPsych, gridHTML, {
   };
 
   const grid = {
-    type: jsPsychVslGridAlt,
+    type: jsPsychVslGrid,
     html: gridHTML,
+    roomScaleFactor: 2,
     cellSize: 25,
     baseImage: `${STIM_IMAGES}/${baseImage}`,
+    gtRoom,
     room,
     isExample,
     imagePath: `${OBSTACLE_IMAGES}`,
@@ -174,12 +205,16 @@ export async function run({
 
   // ! TODO: what do here??? ask John for halp
   // empty html template for jsPsych to use
-  psiTurk.showPage('trial.html');
-  const gridHTML = psiTurk.getPage("experiments/grid.html");
+  // psiTurk.showPage('trial.html');
+  // const gridHTML = psiTurk.getPage("experiments/grid.html");
+  var url = "/assets/experiments/grid.html"
+  let gridHTML = await fetch(url)
+  gridHTML = await gridHTML.text();
+  // console.log(gridHTML)
   const wrappedMakeImageGridPair = (args) => makeImageGridPair(jsPsych, gridHTML, args)
 
-  const control_list = condition_list[1].slice(0, N_TRIALS)
-  condition_list = condition_list[0]
+  // const control_list = doorCondition[1].slice(0, N_TRIALS)
+  // var condition_list = doorCondition;
 
   var left_exit = []
   var right_exit = []
@@ -193,10 +228,10 @@ export async function run({
   left_exit = left_exit.slice(0, N_TRIALS)
   right_exit = right_exit.slice(0, N_TRIALS)
 
-  condition_list = left_exit.concat(right_exit).concat(control_list)
+  condition_list = left_exit.concat(right_exit)
 
   // shuffle conditions
-  condition_list = shuffle(condition_list);
+  condition_list = _.shuffle(condition_list);
 
 
   const timeline = [];
@@ -211,7 +246,7 @@ export async function run({
 
   // Switch to fullscreen
   timeline.push({
-    type: FullscreenPlugin,
+    type: jsPsychFullscreen,
     fullscreen_mode: true,
   });
 
@@ -305,7 +340,8 @@ export async function run({
     roomID: 30,
     stimImage: exampleImage,
     condition: 2,
-    isExample: true
+    isExample: true,
+    gtRoom: exampleBaseRoom,
   });
 
   // ---------------------
