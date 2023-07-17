@@ -23,6 +23,35 @@
                     <span id="grid-wall"> Wall </span>
                     <span id="grid-obstacle"> Obstacle </span>
                     <span id="grid-correct"> Correct Obstacle </span>
+                    <!-- <span id="grid-missing"> Missing Obstacle </span>
+                    <span id="grid-incorrect"> Incorrect Obstacle </span>
+                    <span id="grid-outside-fov"> Outside of your field-of-view </span> -->
+                </div>
+            </div>
+        </li>
+    </ul>
+    <ul id="demo-banners-feedback" class="list-group text-start my-5">
+        <li class="list-group-item list-group-item-success">
+            <div class="ms-2 me-auto">
+                <div class="fw-bold">Adding Obstacles</div>
+                To add an obstacle, press the <button class="btn btn-outline-success">Draw</button> button below the grid, then <strong>click on the cells in the grid.</strong> To add <strong>multiple obstacles</strong>, click and drag over the cells in the grid.
+            </div>
+        </li>
+        <li class="list-group-item list-group-item-danger">
+            <div class="ms-2 me-auto">
+                <div class="fw-bold">Removing Obstacles</div>
+                To remove an obstacle, press the <button class="btn btn-outline-danger">Erase</button> button below the grid, then <strong>click on the cells in the grid.</strong> To remove <strong>multiple obstacles</strong>, click and drag over the cells in the grid.
+            </div>
+        </li>
+        <li id="grid-legend" class="list-group-item">
+            <div class="ms-2 me-auto">
+                <div class="fw-bold"> Grid Legend </div>
+                <div id="legend-items">
+                    <span id="grid-entrance"> Your location </span>
+                    <span id="grid-exit"> Exit </span>
+                    <span id="grid-wall"> Wall </span>
+                    <span id="grid-obstacle"> Obstacle </span>
+                    <span id="grid-correct"> Correct Obstacle </span>
                     <span id="grid-missing"> Missing Obstacle </span>
                     <span id="grid-incorrect"> Incorrect Obstacle </span>
                     <span id="grid-outside-fov"> Outside of your field-of-view </span>
@@ -65,7 +94,7 @@
 </div>
 
 <!-- <div id="fabric-grid-container"> </div> -->
-
+<button id="feedback" class="jspsych-btn" disabled> Feedback </button>
 <button id="next" class="jspsych-btn" disabled> Next </button>
 
 <!-- https://stackoverflow.com/a/16844668 -->
@@ -75,9 +104,9 @@
         --grid-exit-bg: #fdda0d;
         --grid-wall-bg: #201b1b;
         --grid-obstacle-bg: #0000ff;
+        --grid-correct-bg: #029e19;
         --grid-missing-bg: #ff8c00;
         --grid-incorrect-bg: #eb0000;
-        --grid-correct-bg: #029e19;
         --grid-outside-fov-bg: #d3d3d3;
         --grid-stroke-color: #1e1e1e;
         --grid-stroke-width: 0.025px;

@@ -4,16 +4,16 @@ import _ from "lodash-es";
 import "./jspsych-vsl-grid-scene.fabric"
 // import { SquareBrush } from "fabric";
 
-// const roomChar2Word = {
-//   "w": "wall", // wall
-//   "e": "entrance", // entrance
-//   "o": "obstacle", // obstacle
-//   "x": "exit", // exit
-//   "b": "outside-fov", // no blocks
-//   0: "room-chunk", // empty spaces
-// }
-
 const roomChar2Word = {
+  "w": "wall", // wall
+  "e": "entrance", // entrance
+  "o": "obstacle", // obstacle
+  "x": "exit", // exit
+  "b": "outside-fov", // no blocks
+  0: "room-chunk", // empty spaces
+}
+
+const roomChar2WordFeedback = {
   "w": "wall", // wall
   "e": "entrance", // entrance
   "o": "obstacle", // obstacle
@@ -66,10 +66,20 @@ const info = <const>{
       pretty_name: "Is it an example?",
       description: "",
     },
+    isFeedback: {
+      type: ParameterType.BOOL,
+      pretty_name: "Is it a feedback example?",
+      description: "",
+    },
     roomScaleFactor: {
       type: ParameterType.INT,
       pretty_name: "Room Scale Factor",
       description: "How much results be scaled by?"
+    },
+    passingPercentageFeedback: {
+      type: ParameterType.FLOAT,
+      pretty_name: "Passing Grade for Feedback trials",
+      description: ""
     }
   },
 };
@@ -88,12 +98,17 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
     room;
     gtRoom;
     isExample;
+    isFeedback;
+    percentageFeedback;
+    passingPercentageFeedback;
     cells;
     eligibleObstacles;
     canvas;
     exampleFeedbackCanvas;
     brush;
     nextBtn;
+    feedbackBtn;
+    startOverBtn;
     cellSize;
     grid;
     imagePath;
@@ -162,8 +177,13 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
       this.cellSize = trial.cellSize;
       this.gtRoom = trial.gtRoom;
       this.isExample = trial.isExample;
+      this.isFeedback = trial.isFeedback;
+      this.passingPercentageFeedback = trial.passingPercentageFeedback;
+
       
       !trial.isExample && document.querySelector("#demo-banners")?.classList.add("d-none", "invisible");
+      !trial.isFeedback && document.querySelector("#demo-banners-feedback")?.classList.add("d-none", "invisible");
+      !trial.isFeedback && document.querySelector("#feedback")?.classList.add("d-none", "invisible");
 
       this.root = document.querySelector(":root");
       this.setCSS("--n-rows", this.room.length);
@@ -209,9 +229,29 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
       // Setup the `Next` button for participants to advance
       this.nextBtn = document.querySelector("#next");
       this.nextBtn.disabled = true;
-      this.nextBtn.addEventListener("click", () => {
-        (this.canEndTrial) && this.endTrial();
-      });
+
+      // Setup the `Feedback` button for participants to advance
+      this.feedbackBtn = document.querySelector("#feedback");
+      this.feedbackBtn.disabled = true;
+
+      if (this.isFeedback) {
+        this.feedbackBtn.addEventListener("click", () => {
+          (this.canEndTrial) && this.generateExampleFeedback();
+
+          // disable editing buttons
+          document.querySelector("#draw")?.classList.add("d-none", "invisible");
+          document.querySelector("#erase")?.classList.add("d-none", "invisible");
+
+          // after grid feedback is displayed, move to next trial
+          this.nextBtn.addEventListener("click", () => {
+            (this.canEndTrial) && this.endTrialFeedback();
+          });
+        });
+      } else {
+        this.nextBtn.addEventListener("click", () => {
+          (this.canEndTrial) && this.endTrial();
+        });
+      }
     }
 
     createCanvas = () => {
@@ -242,7 +282,9 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
               this.delOverlayImage(cell.my.point);
               break;
           }
+
           this.nextBtn.disabled = !this.canEndTrial;
+          this.feedbackBtn.disabled = !this.canEndTrial;
         }
       );
 
@@ -372,25 +414,18 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
       drawBtn?.click();
     }
 
-    generateExampleFeedback = (responseRoom) => {
-      var exampleComparison = this.getExampleComparisonRoom(responseRoom);
-      var exampleComparisonRoom = exampleComparison[0];
-      var percentage = exampleComparison[1];
-      var roundedPercentage: number = +exampleComparison[2];
-
-      console.log("total correct:", {percentage: percentage, roundedPercentage: roundedPercentage, comparison: exampleComparisonRoom})
+    generateExampleFeedback = () => {
+      var feedbackComparisonRoom = this.getExampleComparisonRoom();
+      var roundedPercentage: number = +this.getFeedbackPercentage(feedbackComparisonRoom);
+      this.percentageFeedback = roundedPercentage;
       
-      if (roundedPercentage <= 75) {
-        // Generate the grid for participants to click on
-        // this.canvas = this.createCanvas()
-        // this.generateExampleFeedbackGrid(exampleComparisonRoom);
-        // this.canvas.add(...this.cells)
-        console.log("Example Failed, gotta go back and redo it");
-      }
+      this.generateExampleFeedbackGrid(feedbackComparisonRoom);
+      this.canvas.add(...this.cells)
     }
-    generateExampleFeedbackGrid = (exampleComparisonRoom) => {
+    
+    generateExampleFeedbackGrid = (feedbackComparisonRoom) => {
       // TODO: rewrite function, change roomChar2Word, to include new symbols for "m", "i", "c", and "1"
-      const chunkColors = exampleComparisonRoom.map(rows => rows.map(col => roomChar2Word[col]));
+      const chunkColors = feedbackComparisonRoom.map(rows => rows.map(col => roomChar2WordFeedback[col]));
       const cartesian =
         (...a) => a.reduce((a, b) => a.flatMap(d => b.map(e => [d, e].flat())));
       const rowColProduct = cartesian(_.range(0, this.grid.nRows), _.range(0, this.grid.nCols));
@@ -402,16 +437,23 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
         const cellType = chunkColors[row][col];
         const cell = this.addCell(point, cellType);
         cells.push(cell);
-        (cellType === "room-chunk") && obstacles.push(point);
+        (cellType === "correct-room-chunk") && obstacles.push(point);
       }
 
       this.cells = cells;
       this.eligibleObstacles = obstacles;
     }
 
-    getExampleComparisonRoom = (responseRoom) => {
+    getExampleComparisonRoom = () => {
       // Define the comparison grid
       const comparisonRoom: string[][] = [];
+      var responseRoom = this.room;
+
+      for (const obstacle of this.obstacles) {
+        const row = obstacle.getAttribute("row");
+        const col = obstacle.getAttribute("col");
+        responseRoom[row][col] = "o";
+      }
 
       // Define the excluded characters and their corresponding symbols
       const excludedCharacters = {
@@ -438,31 +480,23 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
           }
 
           // Compare the cells and update the comparison grid
-          if ((groundTruthCell === responseCell) && (responseCell == "0")) {
+          if ((responseCell == "0") && (groundTruthCell === responseCell)) {
             comparisonRoom[row][col] = "1"; // Correct obstacle
-          } else if ((groundTruthCell === responseCell)) {
+          } else if ((responseCell == "o") && (groundTruthCell === responseCell)) {
             comparisonRoom[row][col] = "c"; // Correct obstacle
-          } else if (responseCell === "0") {
-            comparisonRoom[row][col] = "m"; // Missed obstacle
-          } else {
+          } else if ((responseCell == "o") && (groundTruthCell != responseCell)){
             comparisonRoom[row][col] = "i"; // Incorrect obstacle
+          } else if (responseCell == "0") {
+            comparisonRoom[row][col] = "m"; // Missed obstacle
           }
         }
       }
 
       // Now you have the comparison grid with characters representing the comparison result
-      console.log("comparison:", comparisonRoom)
-      console.log("gtRoom:", this.gtRoom)
-      console.log("response:", responseRoom)
-
-      // var percentageResponse = this.getExampleCorrectPercentage(comparisonRoom);
-      var [percentage, roundedPercentage] = this.getExampleCorrectPercentage(comparisonRoom);
-      // var roundedPercentage = percentageResponse[1];
-
-      return [comparisonRoom, percentage, roundedPercentage];
+      return comparisonRoom;
     }
 
-    getExampleCorrectPercentage = (comparisonRoom) => {
+    getFeedbackPercentage = (comparisonRoom) => {
       // Initialize counters
       let totalCells = 0;
       let correctCells = 0;
@@ -495,16 +529,12 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
 
       // Calculate the percentage
       const percentage = (correctCells / totalCells) * 100;
-
       // Round the percentage to two decimal places
       const roundedPercentage = Math.round(percentage * 100) / 100;
-
-      // console.log("total correct:", {percentage: percentage, roundedPercentage: roundedPercentage})
-
-      return [percentage, roundedPercentage];
+      return roundedPercentage;
     }
 
-    endTrialExample() {
+    endTrialFeedback() {
       // kill any remaining setTimeout handlers
       this.jsPsych.pluginAPI.clearAllTimeouts();
 
@@ -525,15 +555,19 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
         original_room: this.room,
         rescaled_room: expandedRoom,
         n_obstacles: this.obstacles.length,
+        feedback_percentage: this.percentageFeedback,
         // obstsacles: this.obstacles,
         rt: performance.now() - this.startTime,
       }
 
-      if (this.isExample) {
-        this.generateExampleFeedback(trialData.original_room);
+      if (this.isFeedback) {
+        this.generateExampleFeedback();
       }
       // Clear the display
       this.displayElement.innerHTML = "";
+
+      // Move to the next trial
+      this.jsPsych.finishTrial(trialData);
     }
 
     endTrial() {
@@ -562,9 +596,6 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
         rt: performance.now() - this.startTime,
       }
 
-      if (this.isExample) {
-        this.generateExampleFeedback(trialData.original_room);
-      }
       // Clear the display
       this.displayElement.innerHTML = "";
 

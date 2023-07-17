@@ -1,7 +1,7 @@
 /**
  * @title reconstruction-jspsych
  * @description 
- * @version 0.1.0
+ * @version 1.1.0
  *
  * @assets assets/
  */
@@ -94,6 +94,7 @@ const STIM_IMAGES = `${IMAGE_PATH}/stims`;
 const OBSTACLE_IMAGES = `${IMAGE_PATH}/obstacles`
 const STIM_IMAGE_W = 720;
 const STIM_IMAGE_H = 480;
+const PASSING_FEEDBACK = 75.0;
 
 /**************
  * Experiment *
@@ -124,7 +125,9 @@ const makeImageGridPair = (jsPsych, gridHTML, {
   stimImage,
   condition,
   isExample = false,
+  isFeedback = false,
   gtRoom = [],
+  passingPercentageFeedback = PASSING_FEEDBACK,
 }) => {
   const {
     exits,
@@ -176,13 +179,14 @@ const makeImageGridPair = (jsPsych, gridHTML, {
     gtRoom,
     room,
     isExample,
+    isFeedback,
+    passingPercentageFeedback,
     imagePath: `${OBSTACLE_IMAGES}`,
     data: {
       // add any additional data that needs to be recorded here
       type: `${prefix}_grid`,
       exit: condition,
       scene_id: roomID,
-
     }
   };
 
@@ -203,18 +207,11 @@ export async function run({
     // on_trial_start: jatos.addAbortButton,
   });
 
-  // ! TODO: what do here??? ask John for halp
-  // empty html template for jsPsych to use
-  // psiTurk.showPage('trial.html');
-  // const gridHTML = psiTurk.getPage("experiments/grid.html");
   var url = "/assets/experiments/grid.html"
   let gridHTML = await fetch(url)
   gridHTML = await gridHTML.text();
-  // console.log(gridHTML)
-  const wrappedMakeImageGridPair = (args) => makeImageGridPair(jsPsych, gridHTML, args)
 
-  // const control_list = doorCondition[1].slice(0, N_TRIALS)
-  // var condition_list = doorCondition;
+  const wrappedMakeImageGridPair = (args) => makeImageGridPair(jsPsych, gridHTML, args)
 
   var left_exit = []
   var right_exit = []
@@ -227,13 +224,11 @@ export async function run({
 
   left_exit = left_exit.slice(0, N_TRIALS)
   right_exit = right_exit.slice(0, N_TRIALS)
-
   condition_list = left_exit.concat(right_exit)
-
   // shuffle conditions
   condition_list = _.shuffle(condition_list);
 
-
+  // create empty trial timeline
   const timeline = [];
 
   // Preload assets
@@ -262,6 +257,7 @@ export async function run({
       type: "prolific_id",
     }
   };
+
   // add the following trial pages to be displayed in their respective order
   if (!SKIP_PROLIFIC_ID) {
     timeline.push(prolific_id);
@@ -341,7 +337,9 @@ export async function run({
     stimImage: exampleImage,
     condition: 2,
     isExample: true,
+    isFeedback: false,
     gtRoom: exampleBaseRoom,
+    passingPercentageFeedback: PASSING_FEEDBACK,
   });
 
   // ---------------------
@@ -350,7 +348,7 @@ export async function run({
   // comprehension check  
   // ---------------------
   // questions
-  var comp_check = {
+  var compCheck = {
     type: jsPsychSurveyMultiChoice,
     preamble: "<h2>Comprehension Check</h2>",
     questions: [{
@@ -380,9 +378,8 @@ export async function run({
     }
   };
 
-
-  // feedback
-  var comp_feedback = {
+  // comprehension check feedback
+  var compFeedback = {
     type: jsPsychHtmlButtonResponse,
     stimulus: function () {
       var last_correct_resp = jsPsych.data.getLastTrialData().values()[0].correct;
@@ -401,12 +398,12 @@ export async function run({
   };
 
   // `comp_loop`: if answers are incorrect, `comp_check` will be repeated until answers are correct responses
-  var comp_loop = {
+  var compLoop = {
     timeline: [
       instructions,
       ...exampleImageRooms,
-      comp_check,
-      comp_feedback
+      compCheck,
+      compFeedback
     ],
     loop_function: function (data) {
       // check if `comp_check` was passed, break loop 
@@ -414,7 +411,72 @@ export async function run({
     }
   };
 
-  timeline.push(comp_loop);
+  timeline.push(compLoop);
+  // ---------------------
+
+  // ---------------------
+  // feedback instructions    
+  // ---------------------
+  var feedbackInstructions = {
+    type: jsPsychInstructions,
+    pages: [
+      `<strong>The next screen will be an example trial, with feedback.</strong> <br>` + 
+      `Once you are done placing the obstacles on the grid, press the <b>Feedback</b> button, observe your results, then press <b>Next</b>. <br>`+
+      `To continue with the study, you will need a <b>${PASSING_FEEDBACK}/100</b> on the example trial. <br><br>` +
+      `Click <b>Next</b> when you are ready to start the demonstration.`,
+    ],
+    show_clickable_nav: true,
+    show_page_number: true,
+    page_label: "<b>Example Trial Instructions</b>",
+    allow_backward: false,
+  };
+  // ---------------------
+
+  // ---------------------
+  //    feedback trials
+  // ---------------------
+  const exampleImageFeedback = "30_2.png";
+  const exampleImageRoomsFeedback = wrappedMakeImageGridPair({
+    roomID: 30,
+    stimImage: exampleImageFeedback,
+    condition: 2,
+    isExample: false,
+    isFeedback: true,
+    gtRoom: exampleBaseRoom,
+    passingPercentageFeedback: PASSING_FEEDBACK,
+  });
+
+  // example trial feedback
+  var exampleFeedback = {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: function () {
+      var feedbackPercentage = jsPsych.data.getLastTrialData().values()[0].feedback_percentage;
+
+      if (feedbackPercentage >= PASSING_FEEDBACK) {
+        return `<span style='color:green'><h2>You passed the example feedback trial!</h2></span> ` + `<br>When you're ready, please click <b>Next</b> to begin the study. `
+      } else {
+        return `<span style='color:red'><h2>You failed the feedback trial, with a <b>${feedbackPercentage}/100</b>.</h2></span> ` + `<br>Please click <b>Next</b> to revisit the feedback trial. `
+      }
+    },
+    choices: ['Next'],
+    data: {
+      // add any additional data that needs to be recorded here
+      type: "example_feedback",
+    }
+  };
+
+  var feedbackLoop = {
+    timeline: [
+      feedbackInstructions,
+      ...exampleImageRoomsFeedback,
+      exampleFeedback
+    ],
+    loop_function: function (data) {
+      return (data.values()[1].feedback_percentage >= PASSING_FEEDBACK) ? false : true;
+    }
+  };
+
+  timeline.push(feedbackLoop);
   // ---------------------
 
   // ---------------------
@@ -433,7 +495,6 @@ export async function run({
     timeline.push(...imageRoomPair);
   }
   // ---------------------
-
 
   // ---------------------
   //       end page        
