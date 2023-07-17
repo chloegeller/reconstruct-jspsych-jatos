@@ -115,7 +115,9 @@ var jsPsychVslGridAlt = (function (jspsych) {
     get scaleFactor() {
       // https://www.jspsych.org/7.0/plugins/resize/index.html#data-generated
       return this.jsPsych.data.get()
-        .filter({type: "cc_scale"})
+        .filter({
+          type: "cc_scale"
+        })
         .first(1)
         .select("scale_factor")
         .values[0] || 1;
@@ -129,7 +131,6 @@ var jsPsychVslGridAlt = (function (jspsych) {
       this.imagePath = trial.imagePath;
       this.cellSize = trial.cellSize;
 
-      
       !trial.isExample && document.querySelector("#demo-banners").classList.add("d-none", "invisible");
 
       this.root = document.querySelector(":root");
@@ -172,7 +173,6 @@ var jsPsychVslGridAlt = (function (jspsych) {
       });
       this.canvas.freeDrawingBrush = this.brush;
       this.setupBrushToggles();
-
       // Setup the `Next` button for participants to advance
       this.nextBtn = document.querySelector("#next");
       this.nextBtn.disabled = true;
@@ -194,13 +194,20 @@ var jsPsychVslGridAlt = (function (jspsych) {
         width: this.grid.nCols * this.gridSize,
         height: this.grid.nRows * this.gridSize,
       })
-    
+
       canvas.on({
-        "object:modified": ({ cell, mode }) => {
+        "object:modified": ({
+          cell,
+          mode
+        }) => {
           console.log(mode, cell.my.point);
           switch (mode) {
-            case "draw": this.addOverlayImage(cell.my.point); break;
-            case "erase": this.delOverlayImage(cell.my.point); break;
+            case "draw":
+              this.addOverlayImage(cell.my.point);
+              break;
+            case "erase":
+              this.delOverlayImage(cell.my.point);
+              break;
           }
           this.nextBtn.disabled = !this.canEndTrial;
         }
@@ -208,7 +215,7 @@ var jsPsychVslGridAlt = (function (jspsych) {
 
       return canvas;
     };
-    
+
     generateGrid = () => {
       const chunkColors = this.room.map(rows => rows.map(col => roomChar2Word[col]));
       const cartesian =
@@ -269,7 +276,10 @@ var jsPsychVslGridAlt = (function (jspsych) {
         return
       }
 
-      const {x, y} = point;
+      const {
+        x,
+        y
+      } = point;
       const img = document.createElement("img");
       img.classList.add("img-overlay");
       img.src = this.getObstacleImage(`${x}_${y}.png`);
@@ -292,7 +302,10 @@ var jsPsychVslGridAlt = (function (jspsych) {
     }
 
     getOverlayImage(point) {
-      const {x, y} = point;
+      const {
+        x,
+        y
+      } = point;
       return this.overlayContainer.querySelector(`img[col="${x}"][row="${y}"]`);
     }
 
