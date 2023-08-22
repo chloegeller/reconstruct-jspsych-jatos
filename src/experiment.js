@@ -11,6 +11,8 @@ import "../styles/main.scss";
 
 import jsPsychFullscreen from "@jspsych/plugin-fullscreen";
 import HtmlKeyboardResponsePlugin from "@jspsych/plugin-html-keyboard-response";
+import VirtualChinrestPlugin from '@jspsych/plugin-virtual-chinrest';
+import ExternalHtmlPlugin from "@jspsych/plugin-external-html";
 import jsPsychSurveyMultiChoice from '@jspsych/plugin-survey-multi-choice';
 import jsPsychImageKeyboardResponse from '@jspsych/plugin-image-keyboard-response';
 import jsPsychInstructions from '@jspsych/plugin-instructions';
@@ -36,6 +38,9 @@ import condition_list from "./condlist.json";
  * @type {import("jspsych-builder").RunFunction}
  */
 
+// TODO: remember to change Prolific URL
+// Prolific variables
+const PROLIFIC_URL = 'https://app.prolific.co/submissions/complete?cc=782B6DAB';
 
 // Define global experiment variables
 var N_TRIALS = 16;
@@ -69,17 +74,17 @@ baseRoom[baseRoom.length - 1][7] = "e"
 
 const exampleBaseRoom = `
 wwwwwwwwwwwwwwww
+w              w
 w       ooo oo w
-w     oo     o w
-w      o ooo   w
+w o   oo    oo w
+woo    o ooo o w
 w       oo     w
 w      o       w
 w     oo       w
-w   o   o      w
-w     o        w
-w              w
-w              w
-wb            bw
+w   o   o     ow
+w     o    o  ow
+w          o  ow
+wb         o  bw
 wbb          bbw
 wbbb        bbbw
 bbbbb      bbbbb
@@ -95,6 +100,8 @@ const OBSTACLE_IMAGES = `${IMAGE_PATH}/obstacles`
 const STIM_IMAGE_W = 720;
 const STIM_IMAGE_H = 480;
 const PASSING_FEEDBACK = 75.0;
+const STIM_DEG = 10;
+const PIXELS_PER_UNIT = STIM_IMAGE_W / STIM_DEG;
 
 /**************
  * Experiment *
@@ -126,7 +133,6 @@ const makeImageGridPair = (jsPsych, gridHTML, {
   condition,
   isExample = false,
   isFeedback = false,
-  gtRoom = [],
   passingPercentageFeedback = PASSING_FEEDBACK,
 }) => {
   const {
@@ -134,6 +140,7 @@ const makeImageGridPair = (jsPsych, gridHTML, {
     baseImage
   } = CONDITIONS[condition];
   const room = setExits(Array.from(baseRoom), exits);
+  const gtRoom = setExits(Array.from(exampleBaseRoom), exits);
   const prefix = isExample ? "example" : "trial";
 
   // stimulus trial
@@ -187,6 +194,7 @@ const makeImageGridPair = (jsPsych, gridHTML, {
       type: `${prefix}_grid`,
       exit: condition,
       scene_id: roomID,
+
     }
   };
 
@@ -202,16 +210,29 @@ export async function run({
 }) {
   const jsPsych = initJsPsych({
     show_progress_bar: true,
+    on_trial_start: function () {
+      if (typeof jatos !== 'undefined') {
+        jatos.addAbortButton;
+      }
+    },
+    on_finish: function (data) {
+      if (typeof jatos !== 'undefined') {
+        // in jatos environment
+        jatos.endStudyAndRedirect(PROLIFIC_URL, jsPsych.data.get().json());
+      } else {
+        return jsPsych;
+      };
+    }
     // FIXME: detect dev or jatos env
     // TODO: uncomment below before `npm run jatos`, comment during dev
     // on_trial_start: jatos.addAbortButton,
   });
 
-  var url = "/assets/experiments/grid.html"
-  let gridHTML = await fetch(url)
+  var url = "/assets/experiments/grid.html";
+  let gridHTML = await fetch(url);
   gridHTML = await gridHTML.text();
 
-  const wrappedMakeImageGridPair = (args) => makeImageGridPair(jsPsych, gridHTML, args)
+  const wrappedMakeImageGridPair = (args) => makeImageGridPair(jsPsych, gridHTML, args);
 
   var left_exit = []
   var right_exit = []
@@ -224,7 +245,9 @@ export async function run({
 
   left_exit = left_exit.slice(0, N_TRIALS)
   right_exit = right_exit.slice(0, N_TRIALS)
+
   condition_list = left_exit.concat(right_exit)
+
   // shuffle conditions
   condition_list = _.shuffle(condition_list);
 
@@ -245,6 +268,20 @@ export async function run({
     fullscreen_mode: true,
   });
 
+  // add consent page to timeline
+  timeline.push({
+    type: ExternalHtmlPlugin,
+    url: assetPaths.misc[1],
+    cont_btn: 'start',
+    check_fn: function () {
+      if (document.getElementById('consent_checkbox').checked) {
+        return true;
+      } else {
+        alert('You must tick the checkbox to continue with the study.')
+      }
+    }
+  });
+
   // ask for participant ID
   var prolific_id = {
     type: jsPsychSurveyText,
@@ -257,7 +294,6 @@ export async function run({
       type: "prolific_id",
     }
   };
-
   // add the following trial pages to be displayed in their respective order
   if (!SKIP_PROLIFIC_ID) {
     timeline.push(prolific_id);
@@ -287,13 +323,28 @@ export async function run({
 
   timeline.push(welcome);
   // ---------------------
+  // var cc_scale = {
+  //   type: jsPsychResize,
+  //   item_width: 480, // 3 + 3 / 8,
+  //   item_height: 288, // 2 + 1 / 8,
+  //   starting_size: 384,
+  //   prompt: `<p>Please sit comfortably in front of you monitor and outstretch your arm holding a credit card (or a similary sized ID card).</p> <p>Click and drag the lower right corner of the box until the box is the same size as a credit card held up to the screen.</p> `,
+  //   pixels_per_unit: 1,
+  //   data: {
+  //     type: "cc_scale"
+  //   },
+  //   on_finish: (data) => {
+  //     document.querySelector("#jspsych-content").style.removeProperty("transform");
+  //   }
+  // };
+
+  // ---------------------
   var cc_scale = {
-    type: jsPsychResize,
-    item_width: 480, // 3 + 3 / 8,
-    item_height: 288, // 2 + 1 / 8,
-    starting_size: 384,
-    prompt: `<p>Please sit comfortably in front of you monitor and outstretch your arm holding a credit card (or a similary sized ID card).</p> <p>Click and drag the lower right corner of the box until the box is the same size as a credit card held up to the screen.</p> `,
-    pixels_per_unit: 1,
+    type: VirtualChinrestPlugin,
+    blindspot_reps: 3,
+    resize_units: "deg",
+    // prompt: `<p>Please sit comfortably in front of you monitor and outstretch your arm holding a credit card (or a similary sized ID card).</p> <p>Click and drag the lower right corner of the box until the box is the same size as a credit card held up to the screen.</p> `,
+    pixels_per_unit: PIXELS_PER_UNIT,
     data: {
       type: "cc_scale"
     },
@@ -378,6 +429,7 @@ export async function run({
     }
   };
 
+
   // comprehension check feedback
   var compFeedback = {
     type: jsPsychHtmlButtonResponse,
@@ -420,8 +472,8 @@ export async function run({
   var feedbackInstructions = {
     type: jsPsychInstructions,
     pages: [
-      `<strong>The next screen will be an example trial, with feedback.</strong> <br>` + 
-      `Once you are done placing the obstacles on the grid, press the <b>Feedback</b> button, observe your results, then press <b>Next</b>. <br>`+
+      `<strong>The next screen will be an example trial, with feedback.</strong> <br>` +
+      `Once you are done placing the obstacles on the grid, press the <b>Feedback</b> button, observe your results, then press <b>Next</b>. <br>` +
       `To continue with the study, you will need a <b>${PASSING_FEEDBACK}/100</b> on the example trial. <br><br>` +
       `Click <b>Next</b> when you are ready to start the demonstration.`,
     ],
@@ -442,7 +494,7 @@ export async function run({
     condition: 2,
     isExample: false,
     isFeedback: true,
-    gtRoom: exampleBaseRoom,
+    // gtRoom: exampleBaseRoom,
     passingPercentageFeedback: PASSING_FEEDBACK,
   });
 
@@ -469,7 +521,7 @@ export async function run({
     timeline: [
       feedbackInstructions,
       ...exampleImageRoomsFeedback,
-      exampleFeedback
+      // exampleFeedback
     ],
     loop_function: function (data) {
       return (data.values()[1].feedback_percentage >= PASSING_FEEDBACK) ? false : true;
@@ -495,6 +547,7 @@ export async function run({
     timeline.push(...imageRoomPair);
   }
   // ---------------------
+
 
   // ---------------------
   //       end page        

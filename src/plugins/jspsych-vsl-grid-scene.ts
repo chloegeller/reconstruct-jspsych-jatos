@@ -2,7 +2,7 @@ import { JsPsych, JsPsychPlugin, ParameterType, TrialType } from "jspsych";
 import { fabric } from "fabric";
 import _ from "lodash-es";
 import "./jspsych-vsl-grid-scene.fabric"
-// import { SquareBrush } from "fabric";
+
 
 const roomChar2Word = {
   "w": "wall", // wall
@@ -19,11 +19,11 @@ const roomChar2WordFeedback = {
   "o": "obstacle", // obstacle
   "x": "exit", // exit
   "b": "outside-fov", // no blocks
-  "c": "correct",
-  "m": "missing",
-  "i": "incorrect",
+  "c": "correct", // correct obstacle
+  "m": "missing", // missing obstacle
+  "i": "incorrect", // incorrect obstacle
   0: "room-chunk", // empty spaces
-  1: "correct-room-chunk", // correct empty space 
+  1: "correct-empty", // correct empty space 
 }
 
 const info = <const>{
@@ -184,6 +184,7 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
       !trial.isExample && document.querySelector("#demo-banners")?.classList.add("d-none", "invisible");
       !trial.isFeedback && document.querySelector("#demo-banners-feedback")?.classList.add("d-none", "invisible");
       !trial.isFeedback && document.querySelector("#feedback")?.classList.add("d-none", "invisible");
+      document.querySelector("#demo-feedback")?.classList.add("d-none", "invisible");
 
       this.root = document.querySelector(":root");
       this.setCSS("--n-rows", this.room.length);
@@ -234,13 +235,21 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
       this.feedbackBtn = document.querySelector("#feedback");
       this.feedbackBtn.disabled = true;
 
+      // check if this is a feedback trial example
       if (this.isFeedback) {
+        // disable the next button until participant presses Feedback
+        this.nextBtn?.classList.add("d-none");
         this.feedbackBtn.addEventListener("click", () => {
+
+          // re-enable Next button
+          this.nextBtn?.classList.remove("d-none");
+          // generate the feedback grid
           (this.canEndTrial) && this.generateExampleFeedback();
 
           // disable editing buttons
           document.querySelector("#draw")?.classList.add("d-none", "invisible");
           document.querySelector("#erase")?.classList.add("d-none", "invisible");
+          document.querySelector("#demo-feedback")?.classList.remove("d-none", "invisible");
 
           // after grid feedback is displayed, move to next trial
           this.nextBtn.addEventListener("click", () => {
@@ -422,9 +431,9 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
       this.generateExampleFeedbackGrid(feedbackComparisonRoom);
       this.canvas.add(...this.cells)
     }
-    
+
+    // same function as generateGrid, but uses the feedbackComparisonRoom and roomChar2WordFeedback
     generateExampleFeedbackGrid = (feedbackComparisonRoom) => {
-      // TODO: rewrite function, change roomChar2Word, to include new symbols for "m", "i", "c", and "1"
       const chunkColors = feedbackComparisonRoom.map(rows => rows.map(col => roomChar2WordFeedback[col]));
       const cartesian =
         (...a) => a.reduce((a, b) => a.flatMap(d => b.map(e => [d, e].flat())));
@@ -437,7 +446,7 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
         const cellType = chunkColors[row][col];
         const cell = this.addCell(point, cellType);
         cells.push(cell);
-        (cellType === "correct-room-chunk") && obstacles.push(point);
+        (cellType === "correct-empty") && obstacles.push(point);
       }
 
       this.cells = cells;
@@ -458,9 +467,9 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
       // Define the excluded characters and their corresponding symbols
       const excludedCharacters = {
         "w": "w",
+        "x": "x",
         "b": "b",
         "e": "e",
-        "x": "x"
       };
 
       // Iterate over each row in the grids
@@ -481,7 +490,7 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
 
           // Compare the cells and update the comparison grid
           if ((responseCell == "0") && (groundTruthCell === responseCell)) {
-            comparisonRoom[row][col] = "1"; // Correct obstacle
+            comparisonRoom[row][col] = "1"; // Correct empty spots
           } else if ((responseCell == "o") && (groundTruthCell === responseCell)) {
             comparisonRoom[row][col] = "c"; // Correct obstacle
           } else if ((responseCell == "o") && (groundTruthCell != responseCell)){
@@ -507,18 +516,19 @@ class VSLGridPlugin implements JsPsychPlugin<Info> {
           const cell = comparisonRoom[row][col];
 
           // Exclude cells with excluded characters
-          if (cell === "w" || cell === "b" || cell === "e" || cell === "x") {
+          if (cell === "w" || cell === "x" || cell === "e" || cell === "b") {
             continue;
           }
 
           // Increment the total cell count
           totalCells++;
 
+          // TODO: change this so that the grading is based on the distance
           // Check for correct cells
           if (cell === "c") {
             correctCells++;
           } else if (cell === "1") {
-            correctCells += 0.75
+            correctCells += 0.5
           } else if (cell === "i") {
             correctCells -= 0.5;
           } else if (cell === "m") {
